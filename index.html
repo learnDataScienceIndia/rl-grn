@@ -381,27 +381,39 @@
       <td><input type="text" placeholder="Item description" id="d${id}"/></td>
       <td class="ct"><input type="number" min="0" step="any" placeholder="0.00" id="rt${id}" class="ri"/></td>
       <td class="ct"><input type="number" min="0" step="any" placeholder="0" id="q${id}" class="qi"/></td>
-      <td class="rt"><input type="text" value="0.00" id="a${id}" class="ai" readonly/></td>
+      <td class="rt"><input type="number" min="0" step="any" placeholder="0.00" id="a${id}" class="ai"/></td>
       <td class="no-print ct"><button class="rm-btn" onclick="removeRow(${id})" title="Remove">✕</button></td>
     `;
     
     const qi = tr.querySelector('.qi');
     const ri = tr.querySelector('.ri');
+    const ai = tr.querySelector('.ai');
     
-    const calcRow = () => {
-      const q = parseFloat(qi.value) || 0;
-      const r = parseFloat(ri.value) || 0;
-      const ai = tr.querySelector('.ai');
-      if (q && r) {
-        ai.value = (q * r).toFixed(2);
-      } else {
-        ai.value = '0.00';
+    const handleInput = (changed) => {
+      const qStr = qi.value;
+      const rStr = ri.value;
+      const aStr = ai.value;
+      
+      const q = parseFloat(qStr);
+      const r = parseFloat(rStr);
+      const a = parseFloat(aStr);
+
+      if (changed === 'q') {
+        if (rStr !== '') ai.value = (isNaN(q) || isNaN(r)) ? '' : (q * r).toFixed(2);
+        else if (aStr !== '' && q) ri.value = (isNaN(q) || isNaN(a)) ? '' : (a / q).toFixed(2);
+      } else if (changed === 'r') {
+        if (qStr !== '') ai.value = (isNaN(q) || isNaN(r)) ? '' : (q * r).toFixed(2);
+        else if (aStr !== '' && r) qi.value = (isNaN(r) || isNaN(a)) ? '' : (a / r).toFixed(2);
+      } else if (changed === 'a') {
+        if (qStr !== '' && q) ri.value = (isNaN(q) || isNaN(a)) ? '' : (a / q).toFixed(2);
+        else if (rStr !== '' && r) qi.value = (isNaN(r) || isNaN(a)) ? '' : (a / r).toFixed(2);
       }
       recalc();
     };
 
-    qi.addEventListener('input', calcRow);
-    ri.addEventListener('input', calcRow);
+    qi.addEventListener('input', () => handleInput('q'));
+    ri.addEventListener('input', () => handleInput('r'));
+    ai.addEventListener('input', () => handleInput('a'));
     
     document.getElementById('tbody').appendChild(tr);
   }
