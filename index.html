@@ -228,10 +228,17 @@
   </div>
   <div class="toolbar-left">
     <button class="btn btn-add" onclick="addRow()">＋ Add Row</button>
-    <button class="btn btn-print" onclick="window.print()">
-      <svg viewBox="0 0 24 24"><path d="M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z"/></svg>
-      Print
-    </button>
+    <div style="display:flex; gap:10px; align-items:center;">
+      <button class="btn btn-add" onclick="saveProject()">💾 Save Project</button>
+      <label class="btn btn-add" style="margin:0; cursor:pointer;">
+        📂 Load Project
+        <input type="file" accept=".json" style="display:none;" onchange="loadProject(event)">
+      </label>
+      <button class="btn btn-print" onclick="window.print()">
+        <svg viewBox="0 0 24 24"><path d="M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z"/></svg>
+        Print
+      </button>
+    </div>
     <button class="btn btn-download" onclick="window.print()">
       <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
       Download PDF
@@ -442,6 +449,111 @@
   function applyCurrency() {
     curCode = document.getElementById('curSel').value;
     document.querySelectorAll('.curHdr').forEach(el => el.textContent = curCode);
+  }
+
+  /* ── Universal Save / Load JSON ── */
+  function saveProject() {
+    const data = {
+      inputs: [],
+      textareas: [],
+      selects: [],
+      contentEditables: []
+    };
+    
+    document.querySelectorAll('input:not([type="file"]):not(.qi):not(.ri):not(.ai)').forEach(el => {
+      if (el.closest('#tbody')) return;
+      data.inputs.push({ type: el.type, checked: el.checked, value: el.value });
+    });
+    document.querySelectorAll('textarea').forEach(el => data.textareas.push(el.value));
+    document.querySelectorAll('select').forEach(el => data.selects.push(el.value));
+    document.querySelectorAll('[contenteditable="true"]:not(.expand-input)').forEach(el => data.contentEditables.push(el.innerHTML));
+
+    data.rlGrnRows = [];
+    document.querySelectorAll('#tbody tr').forEach(tr => {
+       const rowData = [];
+       tr.querySelectorAll('input').forEach(inp => rowData.push(inp.value));
+       data.rlGrnRows.push(rowData);
+    });
+
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data));
+    const a = document.createElement('a');
+    a.href = dataStr;
+    a.download = "project_data.json";
+    a.click();
+  }
+
+  function loadProject(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const data = JSON.parse(e.target.result);
+        
+        if (data.rlGrnRows) {
+          const tbody = document.getElementById('tbody');
+          if (tbody) tbody.innerHTML = '';
+          rowId = 0;
+          if (data.rlGrnRows.length > 0) {
+             data.rlGrnRows.forEach(r => {
+                addRow();
+                const tr = tbody.lastElementChild;
+                const inps = tr.querySelectorAll('input');
+                inps.forEach((inp, idx) => { if (r[idx] !== undefined) inp.value = r[idx]; });
+             });
+          } else {
+             addRow();
+          }
+          if (typeof recalc === 'function') recalc();
+        }
+
+        let inputIdx = 0;
+        document.querySelectorAll('input:not([type="file"]):not(.qi):not(.ri):not(.ai)').forEach(el => {
+          if (el.closest('#tbody')) return;
+          if (data.inputs && data.inputs[inputIdx]) {
+            if (el.type === 'checkbox' || el.type === 'radio') {
+                el.checked = data.inputs[inputIdx].checked;
+            } else {
+                el.value = data.inputs[inputIdx].value;
+            }
+          }
+          inputIdx++;
+        });
+
+        let taIdx = 0;
+        document.querySelectorAll('textarea').forEach(el => {
+          if (data.textareas && data.textareas[taIdx] !== undefined) {
+             el.value = data.textareas[taIdx];
+          }
+          taIdx++;
+        });
+
+        let selIdx = 0;
+        document.querySelectorAll('select').forEach(el => {
+          if (data.selects && data.selects[selIdx] !== undefined) {
+             el.value = data.selects[selIdx];
+          }
+          selIdx++;
+        });
+
+        let ceIdx = 0;
+        document.querySelectorAll('[contenteditable="true"]:not(.expand-input)').forEach(el => {
+          if (data.contentEditables && data.contentEditables[ceIdx] !== undefined) {
+             el.innerHTML = data.contentEditables[ceIdx];
+          }
+          ceIdx++;
+        });
+
+        if (typeof applyCurrency === 'function') applyCurrency();
+        if (typeof recalc === 'function') recalc();
+
+        event.target.value = '';
+      } catch (err) {
+        alert("Error parsing JSON file!");
+        console.error(err);
+      }
+    };
+    reader.readAsText(file);
   }
 </script>
 </body>
